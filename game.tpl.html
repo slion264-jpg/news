@@ -69,8 +69,12 @@ main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify
 /* 폭을 1행 실제 너비(12키 × 44 + 간격 11 × 4 = 572)로 묶는다.
    이 상한이 없으면 아래 우측 정렬이 2·3행을 화면 끝까지 밀어낸다. */
 .krow{display:flex;gap:4px;justify-content:center;width:100%;max-width:572px}
-/* 실제 자판처럼 2·3행을 오른쪽에 맞춰 '입력'(2행 끝) 바로 아래에 '지움'(3행 끝)이 오게 한다 */
-.krow:nth-child(2),.krow:nth-child(3){justify-content:flex-end}
+/* 실제 자판처럼 아래로 갈수록 반 칸씩 오른쪽으로 어긋나게 둔다.
+   2행은 반 칸(ㅁ이 ㅂ·ㅈ 사이), 3행은 다시 반 칸(ㅋ이 ㅁ·ㄴ 사이).
+   빈 칸은 키와 똑같이 늘고 줄어야 폭이 달라져도 어긋남이 유지된다. */
+.krow:nth-child(2),.krow:nth-child(3){justify-content:flex-start}
+.kspace{flex:1 1 auto;min-width:30px;max-width:44px}
+.kspace.half{flex:.5 1 auto;min-width:13px;max-width:20px}
 .key{min-width:30px;height:52px;flex:1 1 auto;max-width:44px;border:0;border-radius:5px;
   background:var(--key);color:var(--key-fg);font-size:17px;font-weight:700;cursor:pointer;
   font-family:inherit;transition:background .15s;display:flex;align-items:center;justify-content:center}
@@ -122,8 +126,10 @@ select,.toggle{font-family:inherit;font-size:13px;padding:5px 8px;border-radius:
 .skipbox input{flex:0 0 auto;width:17px;height:17px;margin:1px 0 0;accent-color:var(--accent);cursor:pointer}
 .skipbox small{display:block;margin-top:2px;color:var(--sub);font-size:11.5px;line-height:1.5}
 @media (max-width:430px){ .key{height:48px;font-size:15px;min-width:24px}
-  .krow{gap:3px} .key.wide{min-width:42px;font-size:11px} #keyboard{padding:6px 3px 10px} }
-@media (max-width:340px){ .key{min-width:20px;font-size:14px} .krow{gap:2px} }
+  .krow{gap:3px} .key.wide{min-width:42px;font-size:11px} #keyboard{padding:6px 3px 10px}
+  .kspace{min-width:24px} .kspace.half{min-width:10px} }
+@media (max-width:340px){ .key{min-width:20px;font-size:14px} .krow{gap:2px}
+  .kspace{min-width:20px} .kspace.half{min-width:9px} }
 @media (max-height:700px){ #board{--tile:min(44px,var(--tile))} .key{height:44px} }
 
 /* ── 갈피 공유 네비 ── */
@@ -421,8 +427,8 @@ WORDS.answers.forEach(w => { const n = decompose(w).length; (BY_LEN[n] = BY_LEN[
 const MAX_TRY = 6;
 const KB_ROWS = [
   ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ','ㅐ','ㅒ','ㅔ','ㅖ'],
-  ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ','ENTER'],
-  ['ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ','BACK']
+  ['HALF','ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ','ENTER'],
+  ['GAP','ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ','BACK']
 ];
 // 물리 키보드(두벌식) 매핑 — KeyboardEvent.code 기준이라 IME/영문 상태와 무관
 const PHYS = {KeyQ:'ㅂ',KeyW:'ㅈ',KeyE:'ㄷ',KeyR:'ㄱ',KeyT:'ㅅ',KeyY:'ㅛ',KeyU:'ㅕ',KeyI:'ㅑ',KeyO:'ㅐ',KeyP:'ㅔ',
@@ -553,6 +559,13 @@ function renderKeyboard(){
     const row = document.createElement('div');
     row.className = 'krow';
     keys.forEach(k => {
+      if (k === 'HALF' || k === 'GAP'){                 // 자판 어긋남용 빈 칸
+        const s = document.createElement('div');
+        s.className = k === 'HALF' ? 'kspace half' : 'kspace';
+        s.setAttribute('aria-hidden', 'true');
+        row.appendChild(s);
+        return;
+      }
       const b = document.createElement('button');
       b.className = 'key';
       if (k === 'ENTER'){ b.classList.add('wide'); b.textContent = '입력'; }
