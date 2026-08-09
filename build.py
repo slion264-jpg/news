@@ -59,6 +59,22 @@ def is_nofetch(url):
 
 
 # ── 분석 ────────────────────────────────────────────────
+# 표본이 작을 때 φ 값만으로는 근거의 두께를 구분할 수 없다. 기사 2건씩만 등장하는 두 단어가
+# 우연히 한 기사에 같이 나오면 φ ≈ 0.50 이 나오는데, 이는 30건씩 등장하며 15건을 공유하는
+# 진짜 강한 관계(φ ≈ 0.43)보다 높다. 그래서 φ 크기와 별개로 두 가지 관문을 둔다.
+MIN_CO = 2          # 최소 공동등장 기사 수
+Q_FDR = 0.05        # 벤저미니-호흐베르크 거짓발견율 상한
+
+
+def fisher_right(n11, n10, n01, n00):
+    """2×2 분할표의 피셔 정확검정 단측(우측) p값. 근사 없이 정확히 계산한다."""
+    r1, r2, c1 = n11 + n10, n01 + n00, n11 + n01
+    tot = math.comb(r1 + r2, c1)
+    s = sum(math.comb(r1, k) * math.comb(r2, c1 - k)
+            for k in range(n11, min(r1, c1) + 1))
+    return s / tot
+
+
 def analyze(i0=0, i1=None):
     i1 = len(DATES) - 1 if i1 is None else i1
     s, en = DATES[i0], DATES[i1]
@@ -71,11 +87,11 @@ def analyze(i0=0, i1=None):
             sets.setdefault(w, set()).add(a["id"])
     terms = sorted([w for w in sets if len(sets[w]) >= min_df],
                    key=lambda w: (-len(sets[w]), w))
-    links = []
+    cand = []
     for x, y in itertools.combinations(terms, 2):
         A, B = sets[x], sets[y]
         n11 = len(A & B)
-        if not n11:
+        if n11 < MIN_CO:          # 우연한 1건 동시등장을 강한 상관으로 읽는 것을 막는다
             continue
         n10, n01 = len(A) - n11, len(B) - n11
         n00 = n - n11 - n10 - n01
@@ -83,12 +99,23 @@ def analyze(i0=0, i1=None):
         if den <= 0:
             continue
         phi = (n11 * n00 - n10 * n01) / den
-        if phi > 0.02:
-            links.append((x, y, round(phi, 4)))
+        if phi <= 0:
+            continue
+        cand.append((fisher_right(n11, n10, n01, n00), x, y, round(phi, 4), n11))
+    # 검정한 가설 수 = 가능한 모든 쌍. 쌍이 많을수록 우연히 유의해 보이는 쌍도 늘어나므로
+    # 벤저미니-호흐베르크 절차로 거짓발견율(FDR)을 q 이하로 묶는다.
+    m = max(len(terms) * (len(terms) - 1) // 2, 1)
+    cand.sort()
+    keep = 0
+    for i, c in enumerate(cand, 1):
+        if c[0] <= Q_FDR * i / m:
+            keep = i
+    links = [(x, y, phi, n11, p) for p, x, y, phi, n11 in cand[:keep]]
     cat = {}
     for w in terms:
         c = Counter(ART[i]["cat"] for i in sets[w])
-        cat[w] = c.most_common(1)[0][0]
+        # 동률일 때 CATS 순서로 끊는다. most_common 만 쓰면 빌드마다 결과가 달라진다.
+        cat[w] = min(c.items(), key=lambda kv: (-kv[1], CATS.index(kv[0])))[0]
     # 부상 · 소멸
     rising = falling = []
     if i1 - i0 + 1 >= 2:
@@ -643,5 +670,11 @@ if __name__ == "__main__":
     n = sum(len(f) for _, _, f in os.walk(OUT))
     print(f"생성 완료 — {n}개 파일")
     print(f"  기사 {META['articles']} · 토픽 {META['topics']} · 의견 {META['opinions']} · 키워드 {len(A['terms'])}")
+    _m = len(A["terms"]) * (len(A["terms"]) - 1) // 2
+    _co = min((n11 for *_r, n11, p in A["links"]), default=0)
+    _ph = min((phi for _x, _y, phi, _n, _p in A["links"]), default=0)
+    _nd = len({t for x, y, *_r in A["links"] for t in (x, y)})
+    print(f"  연결: {len(A['links'])}개 유의 · 단어 {_nd}개 (조합 {_m}쌍 · 공동등장 {MIN_CO}건 이상"
+          f" · FDR {Q_FDR}) · 최소 근거 {_co}건 · 최소 φ {_ph:.3f}")
     print(f"  본문 미조회 매체 기사: {sum(1 for a in D['articles'] if is_nofetch(a['url']))}건")
     print(f"  오늘의 낱말: {n_puz}일치 (뉴스 키워드 {n_real} · 일반 단어 폴백 {n_puz - n_real})")

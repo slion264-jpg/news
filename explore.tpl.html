@@ -282,6 +282,33 @@ let TH = 0.20, Q = "", i0 = 0, i1 = DATES.length-1;
 const off = new Set();
 let M = null;                       // 현재 기간 분석 결과
 
+const MIN_CO = 2;     // 최소 공동등장 기사 수
+const Q_FDR = 0.05;   // 거짓발견율 상한
+
+/* 로그 감마(란초스 근사) — 조합 수가 커져도 넘치지 않게 로그 공간에서 계산한다 */
+const _LG = [0.99999999999980993, 676.5203681218851, -1259.1392167224028,
+  771.32342877765313, -176.61502916214059, 12.507343278686905,
+  -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7];
+function lgamma(z){
+  if (z < 0.5) return Math.log(Math.PI/Math.sin(Math.PI*z)) - lgamma(1-z);
+  z -= 1;
+  let x = _LG[0];
+  for (let i=1;i<9;i++) x += _LG[i]/(z+i);
+  const t = z + 7.5;
+  return 0.5*Math.log(2*Math.PI) + (z+0.5)*Math.log(t) - t + Math.log(x);
+}
+const lchoose = (n,k) => (k<0 || k>n) ? -Infinity
+  : lgamma(n+1) - lgamma(k+1) - lgamma(n-k+1);
+
+/* 피셔 정확검정 단측(우측) p값 */
+function fisherRight(n11, n10, n01, n00){
+  const r1 = n11+n10, r2 = n01+n00, c1 = n11+n01, N = r1+r2;
+  const den = lchoose(N, c1), kmax = Math.min(r1, c1);
+  let p = 0;
+  for (let k=n11;k<=kmax;k++) p += Math.exp(lchoose(r1,k) + lchoose(r2,c1-k) - den);
+  return Math.min(1, p);
+}
+
 function analyze(a0, a1){
   const s = DATES[a0], e = DATES[a1];
   const arts = DATA.articles.filter(a => a.date >= s && a.date <= e);
@@ -290,22 +317,34 @@ function analyze(a0, a1){
 
   const sets = {};
   arts.forEach(a => new Set(a.terms).forEach(w => (sets[w] ||= new Set()).add(a.id)));
+  // 정렬은 파이썬 쪽(build.py)과 같은 규칙이어야 두 구현의 결과가 완전히 일치한다
   const terms = Object.keys(sets).filter(w => sets[w].size >= minDF)
-                      .sort((x,y)=>sets[y].size - sets[x].size);
+                      .sort((x,y)=> (sets[y].size - sets[x].size) || (x<y?-1:x>y?1:0));
   const dropped = Object.keys(sets).filter(w => sets[w].size < minDF);
 
-  // 파이(φ) 계수 = 이진 변수 간 피어슨 상관
-  let links = [];
+  // 파이(φ) 계수 = 이진 변수 간 피어슨 상관.
+  // φ 크기만으로는 근거의 두께를 알 수 없으므로(기사 2건짜리 단어 둘이 우연히 한 기사에
+  // 겹치면 φ ≈ 0.50) 최소 공동등장 건수와 피셔 정확검정 + FDR 보정을 함께 건다.
+  let cand = [];
   for (let i=0;i<terms.length;i++) for (let j=i+1;j<terms.length;j++){
     const A = sets[terms[i]], B = sets[terms[j]];
     let n11 = 0; A.forEach(x => { if (B.has(x)) n11++; });
-    if (!n11) continue;
+    if (n11 < MIN_CO) continue;
     const n10 = A.size-n11, n01 = B.size-n11, n00 = N-n11-n10-n01;
     const den = Math.sqrt((n11+n10)*(n01+n00)*(n11+n01)*(n10+n00));
     if (!den) continue;
     const phi = (n11*n00 - n10*n01)/den;
-    if (phi > 0.02) links.push({source:terms[i], target:terms[j], phi:+phi.toFixed(4), co:n11});
+    if (phi <= 0) continue;
+    cand.push({source:terms[i], target:terms[j], phi:+phi.toFixed(4), co:n11,
+               p:fisherRight(n11,n10,n01,n00)});
   }
+  // 벤저미니-호흐베르크: 검정한 가설 수는 가능한 모든 쌍
+  const mTests = Math.max(terms.length*(terms.length-1)/2, 1);
+  cand.sort((a,b)=>a.p-b.p);
+  let keepN = 0;
+  for (let i=1;i<=cand.length;i++) if (cand[i-1].p <= Q_FDR*i/mTests) keepN = i;
+  const tested = cand.length;
+  let links = cand.slice(0, keepN);
   // 노드당 상위 K개만 유지해 허브 과밀 방지
   const K = 6, keep = new Set(), bucket = {};
   links.forEach(l => { (bucket[l.source] ||= []).push(l); (bucket[l.target] ||= []).push(l); });
@@ -317,7 +356,9 @@ function analyze(a0, a1){
   const cat = {};
   terms.forEach(w => {
     const c = {}; sets[w].forEach(id => c[AI[id].cat] = (c[AI[id].cat]||0)+1);
-    cat[w] = Object.entries(c).sort((a,b)=>b[1]-a[1])[0][0];
+    // 동률은 CATS 순서로 끊는다(build.py 와 동일 규칙)
+    cat[w] = Object.entries(c)
+      .sort((a,b)=> (b[1]-a[1]) || (CATS.indexOf(a[0]) - CATS.indexOf(b[0])))[0][0];
   });
 
   // 단어 → 토픽 (기간 내 기사 기준)
@@ -354,7 +395,8 @@ function analyze(a0, a1){
   }
 
   return {s, e, days, N, terms, sets, links, cat, wTopics, liveT, liveO,
-          minDF, dropped, rising, falling, inR,
+          minDF, dropped, rising, falling, inR, tested, mTests,
+          sig: keepN,
           df: Object.fromEntries(terms.map(w=>[w, sets[w].size]))};
 }
 
@@ -625,9 +667,16 @@ function renderPeriod(){
     <div class="sec">기간 내 주요 토픽</div>
     ${topT.map(({t,n})=>topicHTML(t, null, n)).join("")}
     <div class="method"><b>분석 방법</b><br>
+      ${M.sig < 10 ? `<b>이 기간은 기사 ${M.N}건뿐이라 통계적으로 확인되는 연결이
+        ${M.sig}개밖에 없습니다. 기간을 넓혀 보세요.</b><br>` : ""}
       선택한 기간의 기사만 골라 문서-단어 이진 행렬을 만들고, 단어 쌍의
       <b>파이(φ) 계수</b>(이진 변수의 피어슨 상관)를 그때그때 다시 계산합니다.
-      φ ≥ 임계값인 쌍만 연결하고 노드당 상위 6개 연결만 남깁니다.
+      φ 값이 커도 근거가 기사 한두 건뿐이면 우연일 수 있으므로,
+      <b>기사 ${MIN_CO}건 이상</b> 함께 등장한 쌍만 후보로 두고
+      <b>피셔 정확검정</b>으로 우연히 겹쳤을 확률을 구한 뒤
+      <b>거짓발견율 ${Q_FDR}</b> 보정(벤저미니-호흐베르크)을 통과한
+      <b>${M.sig}개</b>만 남깁니다. 후보 ${M.tested}쌍 · 가능한 조합 ${M.mTests}쌍.
+      그중 노드당 상위 6개 연결만 그리고, 슬라이더로 φ를 더 높이면 강한 관계만 봅니다.
       문서빈도 ${M.minDF}회 미만 단어는 제외했습니다(3일 미만 선택 시 1회로 완화).
       ${M.dropped.length ? "이번 기간 제외: " + M.dropped.map(LB).join(", ") : ""}
     </div>`;
