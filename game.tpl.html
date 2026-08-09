@@ -66,7 +66,9 @@ main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify
 
 /* ── 키보드 ── */
 #keyboard{flex:0 0 auto;padding:6px 4px 10px;display:flex;flex-direction:column;gap:6px;align-items:center}
-.krow{display:flex;gap:4px;justify-content:center;width:100%}
+/* 폭을 1행 실제 너비(12키 × 44 + 간격 11 × 4 = 572)로 묶는다.
+   이 상한이 없으면 아래 우측 정렬이 2·3행을 화면 끝까지 밀어낸다. */
+.krow{display:flex;gap:4px;justify-content:center;width:100%;max-width:572px}
 /* 실제 자판처럼 2·3행을 오른쪽에 맞춰 '입력'(2행 끝) 바로 아래에 '지움'(3행 끝)이 오게 한다 */
 .krow:nth-child(2),.krow:nth-child(3){justify-content:flex-end}
 .key{min-width:30px;height:52px;flex:1 1 auto;max-width:44px;border:0;border-radius:5px;
