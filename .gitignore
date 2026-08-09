@@ -1,0 +1,5 @@
+# 생성물. build.py 가 언제든 다시 만든다.
+public/
+__pycache__/
+*.pyc
+.firebase/
