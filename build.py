@@ -131,7 +131,8 @@ STATS = [tstat(t) for t in TOPICS]
 
 # ── 셸 ────────────────────────────────────────────────
 NAV = [("index.html", "홈"), ("explore.html", "네트워크"), ("topics.html", "토픽"),
-       ("archive.html", "기사"), ("method.html", "분석 방법"), ("policy.html", "이용 정책")]
+       ("archive.html", "기사"), ("game.html", "오늘의 낱말"),
+       ("method.html", "분석 방법"), ("policy.html", "이용 정책")]
 
 MARK = ('<svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true">'
         '<line x1="5" y1="6" x2="15" y2="4" stroke="#7C8899" stroke-width="1"/>'
@@ -263,7 +264,7 @@ def build_index():
     body = f"""<div class="wrap">
 <header class="hero"><div>
 <div class="eyebrow">뉴스 상관 분석 · 대한민국 · 누적 {len(DATES)}일</div>
-<h1>뉴스의 갈피를<br>단어와 대립 구도로 잡습니다</h1>
+<h1>뉴스의 갈피를<br>단어와 대립으로 잡습니다</h1>
 <p>{META["range"][0].replace("-", ".")}부터 {META["range"][1].replace("-", ".")}까지 국내 주요 언론 보도
 {META["articles"]}건을 키워드로 태깅하고, 단어 사이의 파이(φ) 상관을 계산해 네트워크로 그렸습니다.
 단어를 누르면 그 단어가 등장한 토픽이, 토픽을 누르면 찬반 의견이, 의견을 누르면 그 발언이 실린
@@ -276,7 +277,12 @@ def build_index():
 <a class="cta" href="explore.html">네트워크 열기 <i>→</i></a>
 </div>{strip(META["daily"])}</header>
 
-<section><div class="sec-head"><h2>이번 주 핵심 이슈</h2><span class="eyebrow">TOP 5</span></div>
+<a class="game-cta" href="game.html"><div>
+<b>오늘의 낱말</b>
+<span>어제 뉴스에 가장 많이 등장한 단어를 자모 여섯 번으로 맞혀 보세요</span>
+</div><i>→</i></a>
+
+<section><div class="sec-head"><h2>핵심 이슈</h2><span class="eyebrow">TOP 5</span></div>
 <p class="sec-note">보도량(기사 수) 기준 상위 다섯 개 토픽</p>
 <div class="rank-list">{rank}</div></section>
 
@@ -496,6 +502,109 @@ DARK2LIGHT = [
 ]
 
 
+# ── 오늘의 낱말 ──────────────────────────────────────────
+# 게임의 정답은 "전일 뉴스에 가장 많이 등장한 키워드"다. 조건은 셋이다.
+#   ① 2음절            ② 게임 사전(83,091개)에 실재  ③ 자모 4~7칸
+# 같은 단어가 며칠씩 반복되면 게임이 죽으므로 최근에 쓴 말은 건너뛴다.
+#
+# 다만 2음절 적격 키워드는 수가 적어서(현재 18개) 28일을 딱 잘라 적용하면
+# 뉴스 키워드를 쓸 수 있는 날에도 무관한 일반 단어가 나가 버린다. 그래서 텀을
+# 단계적으로 완화한다 — 28일을 목표로 하되, 안 되면 14 → 7 → 무제한 순으로 물러선다.
+# 뉴스와 무관한 단어를 내는 것보다 조금 일찍 반복하는 편이 서비스 취지에 맞다.
+# 어느 단계에서도 못 고르면 그때만 일반 정답 풀로 넘기고, 그 사실을 화면에 밝힌다.
+REPEAT_GAPS = [28, 14, 7, 0]
+
+_CHO = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"]
+_JUNG = ["ㅏ", "ㅐ", "ㅑ", "ㅒ", "ㅓ", "ㅔ", "ㅕ", "ㅖ", "ㅗ", "ㅘ", "ㅙ", "ㅚ", "ㅛ", "ㅜ", "ㅝ", "ㅞ", "ㅟ", "ㅠ", "ㅡ", "ㅢ", "ㅣ"]
+_JONG = ["", "ㄱ", "ㄲ", "ㄳ", "ㄴ", "ㄵ", "ㄶ", "ㄷ", "ㄹ", "ㄺ", "ㄻ", "ㄼ", "ㄽ", "ㄾ", "ㄿ", "ㅀ",
+         "ㅁ", "ㅂ", "ㅄ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"]
+_SPLIT = {"ㄲ": "ㄱㄱ", "ㄸ": "ㄷㄷ", "ㅃ": "ㅂㅂ", "ㅆ": "ㅅㅅ", "ㅉ": "ㅈㅈ",
+          "ㄳ": "ㄱㅅ", "ㄵ": "ㄴㅈ", "ㄶ": "ㄴㅎ", "ㄺ": "ㄹㄱ", "ㄻ": "ㄹㅁ", "ㄼ": "ㄹㅂ",
+          "ㄽ": "ㄹㅅ", "ㄾ": "ㄹㅌ", "ㄿ": "ㄹㅍ", "ㅀ": "ㄹㅎ", "ㅄ": "ㅂㅅ",
+          "ㅘ": "ㅗㅏ", "ㅙ": "ㅗㅐ", "ㅚ": "ㅗㅣ", "ㅝ": "ㅜㅓ", "ㅞ": "ㅜㅔ", "ㅟ": "ㅜㅣ", "ㅢ": "ㅡㅣ"}
+
+
+def jamo_len(w):
+    """두벌식 홑자모로 분해했을 때의 칸 수. 완성형이 아니면 None."""
+    out = []
+    for ch in w:
+        c = ord(ch) - 0xAC00
+        if not 0 <= c < 11172:
+            return None
+        for x in (_CHO[c // 588], _JUNG[(c % 588) // 28], _JONG[c % 28]):
+            if x:
+                out.append(_SPLIT.get(x, x))
+    return len("".join(out))
+
+
+def next_day(d):
+    y, m, dd = (int(x) for x in d.split("-"))
+    days = [31, 29 if (y % 4 == 0 and y % 100 != 0) or y % 400 == 0 else 28,
+            31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    dd += 1
+    if dd > days[m - 1]:
+        dd, m = 1, m + 1
+        if m > 12:
+            m, y = 1, y + 1
+    return f"{y:04d}-{m:02d}-{dd:02d}"
+
+
+def game_words():
+    """게임 템플릿에 박혀 있는 단어 목록을 그대로 읽어 온다(중복 관리 지점 제거)."""
+    src = open(os.path.join(ROOT, "game.tpl.html"), encoding="utf-8").read()
+    i = src.index("const WORDS_RAW = ") + len("const WORDS_RAW = ")
+    raw, _ = json.JSONDecoder().raw_decode(src[i:])
+    pair = lambda t: {t[k:k + 2] for k in range(0, len(t), 2)}
+    return pair(raw["all"]), pair(raw["answers"])
+
+
+def build_puzzles(allw, answers):
+    """플레이 날짜 → 퍼즐. D일 기사에서 뽑아 D+1일에 낸다."""
+    eligible = [w for w in TREND
+                if len(w) == 2 and w in allw and (jamo_len(w) or 0) in (4, 5, 6, 7)]
+    puzzles, used = {}, []
+    for i, d in enumerate(DATES):
+        play = next_day(d)
+        ranked = sorted(((TREND[w][i], w) for w in eligible if TREND[w][i] > 0),
+                        key=lambda r: (-r[0], r[1]))
+        pick = None
+        for gap in REPEAT_GAPS:
+            recent = used[-gap:] if gap else []
+            pick = next((r for r in ranked if r[1] not in recent), None)
+            if pick:
+                break
+        if pick:
+            n, w = pick
+            tps = [t for t in TOPICS
+                   if any(w in ART[a]["terms"] for a in t["articles"] if a in ART)][:5]
+            puzzles[play] = {"w": w, "src": d, "n": n, "fb": False,
+                             "topics": [{"id": t["id"], "label": t["label"], "cat": t["cat"]}
+                                        for t in tps]}
+            used.append(w)
+        else:
+            # 조건에 맞는 새 키워드가 없는 날. 일반 정답 풀로 넘기고 화면에 밝힌다.
+            pool = sorted(answers)
+            h = 2166136261
+            for ch in play:
+                h = ((h ^ ord(ch)) * 16777619) & 0xFFFFFFFF
+            puzzles[play] = {"w": pool[h % len(pool)], "src": d, "n": 0,
+                             "fb": True, "topics": []}
+    return puzzles
+
+
+def build_game():
+    allw, answers = game_words()
+    puzzles = build_puzzles(allw, answers)
+    latest = max(puzzles) if puzzles else ""
+    payload = {"latest": latest, "puzzles": puzzles}
+    tpl = open(os.path.join(ROOT, "game.tpl.html"), encoding="utf-8").read()
+    tpl = tpl.replace("__NAV__", nav("game.html"))
+    tpl = tpl.replace("__DAILY__", json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
+    open(os.path.join(OUT, "game.html"), "w", encoding="utf-8").write(tpl)
+    real = sum(1 for p in puzzles.values() if not p["fb"])
+    return len(puzzles), real
+
+
 def build_explore():
     tpl = open(os.path.join(ROOT, "explore.tpl.html"), encoding="utf-8").read()
     for a, b in DARK2LIGHT:
@@ -517,6 +626,7 @@ if __name__ == "__main__":
     build_archive()
     build_docs()
     build_explore()
+    n_puz, n_real = build_game()
     shutil.copy(DATA_PATH, os.path.join(OUT, "data.json"))
 
     # 정적 자산(site.css, favicon.svg, cover.png)을 public/assets 로 복사한다.
@@ -534,3 +644,4 @@ if __name__ == "__main__":
     print(f"생성 완료 — {n}개 파일")
     print(f"  기사 {META['articles']} · 토픽 {META['topics']} · 의견 {META['opinions']} · 키워드 {len(A['terms'])}")
     print(f"  본문 미조회 매체 기사: {sum(1 for a in D['articles'] if is_nofetch(a['url']))}건")
+    print(f"  오늘의 낱말: {n_puz}일치 (뉴스 키워드 {n_real} · 일반 단어 폴백 {n_puz - n_real})")

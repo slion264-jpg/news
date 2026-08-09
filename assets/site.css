@@ -36,7 +36,7 @@ a{color:inherit}
 
 /* 홈 */
 .hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:48px;align-items:end;padding:56px 0 40px}
-.hero h1{font-size:44px;line-height:1.14;font-weight:800;letter-spacing:-.045em;margin:14px 0 0}
+.hero h1{font-size:44px;line-height:1.14;font-weight:800;letter-spacing:-.045em;margin:14px 0 0;word-break:keep-all}
 .hero p{font-size:15px;color:var(--ink-2);margin:16px 0 0;max-width:46ch}
 .kpis{display:flex;gap:26px;margin-top:26px;flex-wrap:wrap}
 .kpi b{display:block;font-size:27px;font-weight:800;letter-spacing:-.04em;line-height:1.1}
@@ -181,3 +181,11 @@ a{color:inherit}
   .clash-row{grid-template-columns:1fr;gap:8px}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* 오늘의 낱말 진입점 */
+.game-cta{display:flex;align-items:center;gap:14px;margin:26px 0 6px;padding:15px 18px;
+  border:1px solid var(--rule);border-radius:8px;background:var(--card);text-decoration:none;color:var(--ink)}
+.game-cta:hover{border-color:var(--accent);background:var(--accent-soft)}
+.game-cta b{display:block;font-size:15px;font-weight:700;letter-spacing:-.02em}
+.game-cta span{display:block;margin-top:3px;font-size:13px;color:var(--ink-2)}
+.game-cta i{margin-left:auto;font-style:normal;color:var(--accent);font-size:17px}
