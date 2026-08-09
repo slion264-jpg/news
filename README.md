@@ -1,4 +1,4 @@
-# 이슈 네트워크 — 배포 안내
+# 갈피 — 배포 안내
 
 기간별 뉴스 상관 분석 사이트. **빌드 의존성이 없습니다** — Python 3만 있으면 됩니다.
 React, Node, 번들러, 패키지 설치 모두 필요 없습니다.
@@ -59,7 +59,7 @@ firebase deploy --only hosting
 ```bash
 git init -b main
 git add -A
-git commit -m "이슈 네트워크 — 정적 사이트"
+git commit -m "갈피 — 정적 사이트"
 git remote add origin https://github.com/slion264-jpg/news.git
 git push -u origin main
 ```

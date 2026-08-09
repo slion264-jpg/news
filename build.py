@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""이슈 네트워크 정적 사이트 생성기.
+"""갈피 정적 사이트 생성기.
 
   python3 build.py            # data.json → public/*.html
 의존성 없음. 결과물은 그대로 Firebase Hosting에 올릴 수 있는 정적 파일이다.
@@ -148,14 +148,14 @@ def nav(cur, depth=0):
         f'<a class="nav-link" data-on="{1 if h == cur else 0}" href="{up}{h}">{n}</a>'
         for h, n in NAV)
     return (f'<nav class="nav"><a class="nav-mark" href="{up}index.html">{MARK}'
-            f'<b>이슈 네트워크</b></a><div class="nav-links">{li}</div>'
+            f'<b>갈피</b></a><div class="nav-links">{li}</div>'
             f'<span class="nav-span num">{md(META["range"][0])} – {md(META["range"][1])}'
             f' · 기사 {META["articles"]}건</span></nav>')
 
 
 def foot(depth=0):
     up = "../" * depth
-    return (f'<div class="wrap"><div class="foot"><div><strong>이슈 네트워크</strong> — '
+    return (f'<div class="wrap"><div class="foot"><div><strong>갈피</strong> — '
             f'국내 주요 언론 보도 {META["articles"]}건을 키워드 태깅해 단어 간 파이(φ) 상관을 '
             f'계산하고, 토픽과 의견, 원문 기사로 이어지는 4계층 구조로 정리한 비영리 사이트입니다.'
             f'</div><div style="margin-top:10px">모든 인용과 수치는 원문 기사로 연결됩니다. '
@@ -262,8 +262,8 @@ def build_index():
 
     body = f"""<div class="wrap">
 <header class="hero"><div>
-<div class="eyebrow">주간 뉴스 상관 분석 · 대한민국</div>
-<h1>한 주의 뉴스를<br>단어와 대립 구도로 읽습니다</h1>
+<div class="eyebrow">뉴스 상관 분석 · 대한민국 · 누적 {len(DATES)}일</div>
+<h1>뉴스의 갈피를<br>단어와 대립 구도로 잡습니다</h1>
 <p>{META["range"][0].replace("-", ".")}부터 {META["range"][1].replace("-", ".")}까지 국내 주요 언론 보도
 {META["articles"]}건을 키워드로 태깅하고, 단어 사이의 파이(φ) 상관을 계산해 네트워크로 그렸습니다.
 단어를 누르면 그 단어가 등장한 토픽이, 토픽을 누르면 찬반 의견이, 의견을 누르면 그 발언이 실린
@@ -293,7 +293,7 @@ def build_index():
 <p class="sec-note">누르면 네트워크 탐색기에서 해당 키워드가 선택된 상태로 열립니다</p>
 <div class="chips">{chips}</div></section>
 </div>"""
-    page("index.html", f"이슈 네트워크 — {META['range'][0]}~{META['range'][1]} 대한민국 뉴스 상관 분석",
+    page("index.html", f"갈피 — {META['range'][0]}~{META['range'][1]} 대한민국 뉴스 상관 분석",
          f"국내 보도 {META['articles']}건을 키워드로 태깅해 단어 상관 네트워크를 그리고, "
          "기간을 바꾸면 그 자리에서 다시 계산합니다. 단어에서 토픽, 찬반 의견, 원문 기사까지.", body)
 
@@ -316,7 +316,7 @@ def build_topics():
         for c in CATS if any(s["t"]["cat"] == c for s in STATS))
     body = f"""<div class="wrap">
 <div style="padding:44px 0 8px"><h1 class="doc-h1" style="margin:0">토픽 {len(TOPICS)}건</h1>
-<p class="doc-lead" style="max-width:62ch">한 주 동안 국내 보도에서 반복해 다뤄진 사안을 토픽으로 묶고,
+<p class="doc-lead" style="max-width:62ch">수록 기간 동안 국내 보도에서 반복해 다뤄진 사안을 토픽으로 묶고,
 각 토픽에 제기된 찬성·반대·문제제기 의견을 원문 기사와 함께 붙였습니다.</p></div>
 <div class="tabs" style="margin-top:26px">
 <button class="tab" data-f="" data-on="1">전체 {len(TOPICS)}</button>{cattabs}
@@ -344,7 +344,7 @@ document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{sort=b.dataset.s
  document.querySelectorAll('[data-s]').forEach(x=>x.dataset.on=x===b?1:0);apply();});
 document.getElementById('q').oninput=ev=>{q=ev.target.value.trim();apply();};
 </script>"""
-    page("topics.html", "토픽 — 이슈 네트워크",
+    page("topics.html", "토픽 — 갈피",
          f"국내 뉴스에서 정리한 {len(TOPICS)}개 토픽. 분야별로 걸러보고 보도량·의견 수·대립 강도로 정렬할 수 있습니다.",
          body, extra_js=js)
 
@@ -394,7 +394,7 @@ def build_topic(s):
 {'<h2>같은 분야의 다른 토픽</h2><div style="margin-top:10px">' + oth + '</div>' if oth else ''}
 </div>"""
     NAV_PARENT[f"topics/{t['id']}.html"] = "topics.html"
-    page(f"topics/{t['id']}.html", f"{t['label']} — 이슈 네트워크", t["summary"], body, depth=1)
+    page(f"topics/{t['id']}.html", f"{t['label']} — 갈피", t["summary"], body, depth=1)
 
 
 # ── 아카이브 ────────────────────────────────────────────
@@ -443,7 +443,7 @@ document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{{c=b.dataset.c;
 document.getElementById('ot').onchange=ev=>{{o=ev.target.value;apply();}};
 document.getElementById('q').oninput=ev=>{{q=ev.target.value.trim();apply();}};
 apply();</script>"""
-    page("archive.html", "기사 아카이브 — 이슈 네트워크",
+    page("archive.html", "기사 아카이브 — 갈피",
          f"분석에 사용한 국내 기사 {META['articles']}건 전체 목록. 날짜·분야·언론사로 걸러보고 원문으로 바로 이동할 수 있습니다.",
          body, extra_js=js)
 
@@ -456,13 +456,13 @@ def build_docs():
         RANGE_TEXT=rng, OUTLETS=outlets, ARTICLES=META["articles"],
         DAILY_TEXT=" · ".join(f"{md(d)}({wd(d)}) {META['daily'][i]}건" for i, d in enumerate(DATES)),
         VOCAB=META["vocab"], TOPICS=META["topics"], OPINIONS=META["opinions"])
-    page("method.html", "분석 방법 — 이슈 네트워크",
+    page("method.html", "분석 방법 — 갈피",
          "키워드 태깅, 파이(φ) 상관계수, 네트워크 배치, 부상·소멸 지표까지 이 사이트의 수치가 만들어진 과정과 한계를 밝힙니다.",
          f'<div class="wrap-narrow prose"><div style="padding:44px 0 0">{m}</div></div>')
 
     p = C.POLICY.format(T_BLOCKED=table(C.BLOCKED), T_PARTIAL=table(C.PARTIAL),
                         T_PENDING=table(C.PENDING), OPEN_LIST=" · ".join(C.OPEN_LIST))
-    page("policy.html", "이용 정책과 저작권 — 이슈 네트워크",
+    page("policy.html", "이용 정책과 저작권 — 갈피",
          "인용 원칙, 링크 정책, 언론사 robots.txt 전수 확인 결과, 삭제 요청 창구를 공개합니다.",
          f'<div class="wrap-narrow prose"><div style="padding:44px 0 0">{p}</div></div>')
 
