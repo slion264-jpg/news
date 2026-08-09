@@ -67,6 +67,8 @@ main{flex:1 1 auto;display:flex;flex-direction:column;align-items:center;justify
 /* ── 키보드 ── */
 #keyboard{flex:0 0 auto;padding:6px 4px 10px;display:flex;flex-direction:column;gap:6px;align-items:center}
 .krow{display:flex;gap:4px;justify-content:center;width:100%}
+/* 실제 자판처럼 2·3행을 오른쪽에 맞춰 '입력'(2행 끝) 바로 아래에 '지움'(3행 끝)이 오게 한다 */
+.krow:nth-child(2),.krow:nth-child(3){justify-content:flex-end}
 .key{min-width:30px;height:52px;flex:1 1 auto;max-width:44px;border:0;border-radius:5px;
   background:var(--key);color:var(--key-fg);font-size:17px;font-weight:700;cursor:pointer;
   font-family:inherit;transition:background .15s;display:flex;align-items:center;justify-content:center}
@@ -113,25 +115,29 @@ html[data-theme="dark"] .key.vowel{box-shadow:inset 0 -3px 0 rgba(142,162,255,.5
 select,.toggle{font-family:inherit;font-size:13px;padding:5px 8px;border-radius:6px;
   border:1px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer}
 .hidden{display:none!important}
+.skipbox{display:flex;align-items:flex-start;gap:9px;margin-top:16px;padding-top:13px;
+  border-top:1px solid var(--line);font-size:13.5px;cursor:pointer;user-select:none}
+.skipbox input{flex:0 0 auto;width:17px;height:17px;margin:1px 0 0;accent-color:var(--accent);cursor:pointer}
+.skipbox small{display:block;margin-top:2px;color:var(--sub);font-size:11.5px;line-height:1.5}
 @media (max-width:430px){ .key{height:48px;font-size:15px;min-width:24px}
   .krow{gap:3px} .key.wide{min-width:42px;font-size:11px} #keyboard{padding:6px 3px 10px} }
 @media (max-width:340px){ .key{min-width:20px;font-size:14px} .krow{gap:2px} }
 @media (max-height:700px){ #board{--tile:min(44px,var(--tile))} .key{height:44px} }
 
 /* ── 갈피 공유 네비 ── */
-.nav{flex:0 0 auto;display:flex;align-items:center;gap:26px;padding:0 20px;height:56px;
+.nav{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:0 26px;padding:6px 20px;min-height:56px;
   background:rgba(244,245,247,.93);border-bottom:1px solid var(--line)}
 html[data-theme="dark"] .nav{background:rgba(18,22,28,.93)}
 .nav-mark{display:flex;align-items:center;gap:9px;text-decoration:none;color:var(--fg);flex:0 0 auto}
 .nav-mark b{font-size:14.5px;font-weight:800;letter-spacing:-.035em}
-.nav-links{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
-.nav-links::-webkit-scrollbar{display:none}
+.nav-links{display:flex;flex-wrap:wrap;gap:2px;min-width:0}
 .nav-link{position:relative;padding:6px 11px;font-size:13px;color:var(--sub);text-decoration:none;border-radius:6px;white-space:nowrap}
 .nav-link:hover{color:var(--fg)}
 .nav-link[data-on="1"]{color:var(--fg);font-weight:700}
 .nav-link[data-on="1"]::after{content:"";position:absolute;left:11px;right:11px;bottom:-1px;height:2px;background:var(--accent)}
 .nav-span{margin-left:auto;font-size:11.5px;color:var(--sub);white-space:nowrap}
-@media(max-width:620px){.nav{gap:12px;padding:0 12px}.nav-span{display:none}}
+@media(max-width:1080px){.nav{gap:0 14px;padding:6px 12px}.nav-span{display:none}}
+@media(max-width:560px){.nav-link{padding:5px 8px;font-size:12.5px}}
 
 /* ── 오늘의 낱말: 출처 배지 ── */
 #src{font-size:12px;color:var(--sub);text-align:center;line-height:1.6;max-width:42ch;word-break:keep-all;padding:0 12px}
@@ -193,6 +199,10 @@ __NAV__
     <li>보드 아래에 지금까지 입력한 자모가 <b>글자로 조합되어</b> 보입니다</li>
     <li>칸을 모두 채우고 <b>Enter</b>로 제출, <b>⌫</b>로 지웁니다</li>
   </ul>
+  <label class="skipbox" for="optSkipHelp">
+    <input type="checkbox" id="optSkipHelp">
+    <span>다시 보지 않기<small>다음부터 이 안내를 자동으로 열지 않습니다. 상단 <b>?</b> 버튼으로 언제든 다시 볼 수 있어요.</small></span>
+  </label>
   <div class="btnrow"><button class="btn" data-close>시작하기</button></div>
 </div></div>
 
@@ -235,8 +245,9 @@ __NAV__
 /* =========================================================================
  *  오늘의 낱말 — 단일 파일 MVP
  *  1) 자모 엔진(분해/조합/판정)  2) 단어 데이터  3) 게임 상태  4) UI
- *  ※ 저장소(localStorage) 미사용 — 통계는 세션 메모리에만 유지
+ *  ※ 통계는 세션 메모리에만 유지 — 새로고침하면 초기화된다
  *    TODO: 서버 연동 시 /api/stats 로 교체
+ *  ※ localStorage 는 '도움말 다시 보지 않기' 한 가지에만 쓴다(차단돼 있어도 동작에 지장 없음)
  * ========================================================================= */
 
 /* ---------- [1] 자모 엔진 ---------- */
@@ -408,8 +419,8 @@ WORDS.answers.forEach(w => { const n = decompose(w).length; (BY_LEN[n] = BY_LEN[
 const MAX_TRY = 6;
 const KB_ROWS = [
   ['ㅂ','ㅈ','ㄷ','ㄱ','ㅅ','ㅛ','ㅕ','ㅑ','ㅐ','ㅒ','ㅔ','ㅖ'],
-  ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ'],
-  ['ENTER','ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ','BACK']
+  ['ㅁ','ㄴ','ㅇ','ㄹ','ㅎ','ㅗ','ㅓ','ㅏ','ㅣ','ENTER'],
+  ['ㅋ','ㅌ','ㅊ','ㅍ','ㅠ','ㅜ','ㅡ','BACK']
 ];
 // 물리 키보드(두벌식) 매핑 — KeyboardEvent.code 기준이라 IME/영문 상태와 무관
 const PHYS = {KeyQ:'ㅂ',KeyW:'ㅈ',KeyE:'ㄷ',KeyR:'ㄱ',KeyT:'ㅅ',KeyY:'ㅛ',KeyU:'ㅕ',KeyI:'ㅑ',KeyO:'ㅐ',KeyP:'ㅔ',
@@ -691,7 +702,18 @@ function open$(sel){ $(sel).classList.remove('hidden'); }
 function closeAll(){ document.querySelectorAll('.backdrop').forEach(b => b.classList.add('hidden')); }
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = closeAll);
 document.querySelectorAll('.backdrop').forEach(b => b.onclick = (e) => { if (e.target === b) closeAll(); });
-$('#btnHelp').onclick = () => open$('#mHelp');
+/* 도움말 '다시 보지 않기' — 저장소가 막혀 있어도 게임은 그대로 돌아가야 한다 */
+const HELP_SKIP_KEY = 'galpi.game.skipHelp';
+function helpSkipped(){
+  try { return localStorage.getItem(HELP_SKIP_KEY) === '1'; } catch(e){ return false; }
+}
+function setHelpSkipped(v){
+  try { localStorage.setItem(HELP_SKIP_KEY, v ? '1' : '0'); } catch(e){}
+}
+$('#optSkipHelp').checked = helpSkipped();
+$('#optSkipHelp').onchange = e => setHelpSkipped(e.target.checked);
+
+$('#btnHelp').onclick = () => { $('#optSkipHelp').checked = helpSkipped(); open$('#mHelp'); };
 $('#btnStats').onclick = openStats;
 $('#btnSettings').onclick = () => open$('#mSet');
 $('#btnTheme').onclick = () => {
@@ -711,7 +733,7 @@ $('#dictInfo').textContent = `사전 ${WORDS.all.length.toLocaleString()}단어 
 
 /* ---------- [8] 시작 ---------- */
 newGame();
-open$('#mHelp');
+if (!helpSkipped()) open$('#mHelp');
 </script>
 </body>
 </html>
