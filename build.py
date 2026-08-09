@@ -518,6 +518,18 @@ if __name__ == "__main__":
     build_docs()
     build_explore()
     shutil.copy(DATA_PATH, os.path.join(OUT, "data.json"))
+
+    # 정적 자산(site.css, favicon.svg, cover.png)을 public/assets 로 복사한다.
+    # public/ 은 .gitignore 대상이므로 원본은 반드시 저장소의 assets/ 에 있어야 한다.
+    src_assets = os.path.join(ROOT, "assets")
+    if not os.path.isdir(src_assets):
+        raise SystemExit("assets/ 폴더가 없습니다. site.css·favicon.svg·cover.png 가 저장소에 있어야 합니다.")
+    shutil.copytree(src_assets, os.path.join(OUT, "assets"), dirs_exist_ok=True)
+    missing = [f for f in ("site.css", "favicon.svg", "cover.png")
+               if not os.path.isfile(os.path.join(OUT, "assets", f))]
+    if missing:
+        raise SystemExit("assets/ 에 다음 파일이 없습니다: " + ", ".join(missing))
+
     n = sum(len(f) for _, _, f in os.walk(OUT))
     print(f"생성 완료 — {n}개 파일")
     print(f"  기사 {META['articles']} · 토픽 {META['topics']} · 의견 {META['opinions']} · 키워드 {len(A['terms'])}")
