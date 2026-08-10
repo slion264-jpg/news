@@ -3,3 +3,6 @@ public/
 __pycache__/
 *.pyc
 .firebase/
+
+# 로컬 실행 도우미. 개인 환경용이라 저장소에 올리지 않는다.
+*.bat
