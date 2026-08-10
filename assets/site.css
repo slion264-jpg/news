@@ -73,18 +73,41 @@ a{color:inherit}
 .rank-side{text-align:right;font-size:11.5px;color:var(--ink-3);white-space:nowrap}
 .rank-side b{display:block;font-size:19px;font-weight:800;color:var(--ink);letter-spacing:-.03em}
 
-.clash-row{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:20px;align-items:center;
-  padding:13px 0;border-bottom:1px solid var(--rule-2);text-decoration:none}
-.clash-row:hover .clash-name{color:var(--accent)}
-.clash-name{font-size:14px;font-weight:650;letter-spacing:-.02em;line-height:1.45;display:block}
-.clash-sub{font-size:11.5px;color:var(--ink-3);margin-top:3px;display:block}
-.clash-bar{display:grid;grid-template-columns:1fr 1px 1fr;align-items:center;height:22px}
-.clash-l,.clash-r{display:flex;align-items:center;height:100%}
-.clash-l{justify-content:flex-end}
-.clash-l>span.b{height:14px;background:var(--con);border-radius:2px 0 0 2px}
-.clash-r>span.b{height:14px;background:var(--pro);border-radius:0 2px 2px 0}
-.clash-axis{width:1px;height:22px;background:var(--ink-3)}
-.clash-n{font-size:10.5px;color:var(--ink-3);padding:0 6px;white-space:nowrap}
+/* 대립 바 — 반대·제기·찬성 비율을 하나의 누적 막대로. 전 화면에서 같은 모양을 쓴다.
+   좌우는 정치 스펙트럼이 아니라 사안에 대한 입장이므로 중앙축을 두지 않는다. */
+.sb{display:grid;grid-template-columns:auto minmax(0,1fr);gap:5px 9px;align-items:center}
+.sb-badge{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:3px;white-space:nowrap}
+.sb-badge.even{background:var(--accent-soft);color:var(--accent)}
+.sb-badge.tilt{background:#fbf1e0;color:var(--neu)}
+.sb-badge.one {background:#fbeaec;color:var(--con)}
+.sb-badge.only{background:var(--rule-2);color:var(--ink-2)}
+.sb-badge.none{background:var(--rule-2);color:var(--ink-3);font-weight:700}
+.sb-bar{display:flex;height:10px;border-radius:2px;overflow:hidden;background:var(--rule-2)}
+.sb-bar i{display:block;height:100%}
+.sb-con{background:var(--con)} .sb-neu{background:var(--neu)} .sb-pro{background:var(--pro)}
+.sb-non{background:var(--rule)}
+.sb-legend{grid-column:1/-1;font-size:11px;color:var(--ink-3);display:flex;gap:9px;flex-wrap:wrap}
+.sb.lg .sb-bar{height:13px}
+.sb.lg .sb-badge{font-size:11.5px;padding:3px 10px}
+.sb.lg .sb-legend{font-size:12px}
+.sb.mini{grid-template-columns:minmax(0,1fr);gap:0}
+.sb.mini .sb-badge,.sb.mini .sb-legend{display:none}
+.sb.mini .sb-bar{height:6px}
+
+/* 대립 순위 행 */
+.cl-row{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:22px;align-items:center;
+  padding:15px 0;border-bottom:1px solid var(--rule-2);text-decoration:none}
+.cl-row:hover .cl-name{color:var(--accent)}
+.cl-name{font-size:14.5px;font-weight:650;letter-spacing:-.02em;line-height:1.45;display:block}
+.cl-sub{font-size:11.5px;color:var(--ink-3);margin-top:3px;display:block}
+
+/* 하단 안내 */
+.guide{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:56px}
+.guide a{display:block;padding:15px 17px;border:1px solid var(--rule);background:var(--card);
+  text-decoration:none;border-radius:8px}
+.guide a:hover{border-color:var(--accent);background:var(--accent-soft)}
+.guide b{display:block;font-size:13.5px;font-weight:700;letter-spacing:-.02em}
+.guide span{display:block;margin-top:4px;font-size:12px;color:var(--ink-3);line-height:1.6}
 
 .duo{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .duo-col{border:1px solid var(--rule);background:var(--card);padding:15px 16px}
@@ -177,11 +200,52 @@ a{color:inherit}
 .cat-dot{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-2);white-space:nowrap}
 .cat-dot i{width:7px;height:7px;border-radius:50%;display:inline-block}
 
-@media (max-width:980px){
-  .hero{grid-template-columns:1fr;gap:30px;padding:36px 0 28px}
+/* ── 반응형 ──
+   900: 2열 구조를 1열로. 620: 카드형 전환·타이포 축소. 380: 최소 대응. */
+@media (max-width:900px){
+  .wrap,.wrap-narrow{padding:0 18px}
+  .hero{grid-template-columns:1fr;gap:26px;padding:34px 0 26px}
   .hero h1{font-size:33px}
   .duo,.duo-box{grid-template-columns:1fr}
-  .clash-row{grid-template-columns:1fr;gap:8px}
+  .cl-row{grid-template-columns:1fr;gap:10px}
+  .guide{grid-template-columns:1fr}
+  .sec-head{margin:36px 0 4px;padding-top:36px}
+  .grid{grid-template-columns:1fr}
+}
+@media (max-width:620px){
+  .wrap,.wrap-narrow{padding:0 14px}
+  .hero{padding:26px 0 22px}
+  .hero h1{font-size:26px}
+  .hero p{font-size:14px}
+  .kpis{gap:0;display:grid;grid-template-columns:1fr 1fr;row-gap:16px}
+  .kpi b{font-size:23px}
+  .sec-head{margin:30px 0 4px;padding-top:30px}
+  .sec-head h2{font-size:18px}
+  /* 순위 행: 번호를 제목 옆에 두고 기사 수는 아래로 내린다.
+     그리드 자식은 블록화되므로 display:inline 이 아니라 열 배치로 푼다. */
+  .rank-open{grid-template-columns:auto minmax(0,1fr);gap:4px 10px;padding:15px 0}
+  .rank-i{font-size:15px;line-height:1.5}
+  .rank-title{font-size:15.5px}
+  .rank-sum{font-size:12.5px;margin-top:6px}
+  .rank-side{grid-column:2;text-align:left;display:flex;gap:5px;align-items:baseline;margin-top:2px}
+  .rank-side b{display:inline;font-size:14px}
+  /* 터치 영역 확보 */
+  .chip{padding:8px 13px;font-size:13px}
+  .tab{padding:8px 12px}
+  .guide{margin-top:36px}
+  .foot{margin-top:44px;padding:22px 0 40px}
+  .doc-meta{gap:10px 16px;font-size:11.5px}
+  .strip-x u{overflow:hidden}
+  /* 기사 표: 분야·매체 열을 숨기고 제목 위주로 */
+  .tbl th,.tbl td{padding:8px 6px}
+  .tbl .c-cat{display:none}
+  .tbl .c-date{width:52px;font-size:11.5px}
+  .tbl .c-outlet{width:74px;font-size:11.5px}
+  .tbl .host{display:none}
+}
+@media (max-width:380px){
+  .hero h1{font-size:23px}
+  .kpis{grid-template-columns:1fr 1fr;row-gap:12px}
 }
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
 

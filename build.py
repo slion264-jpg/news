@@ -217,12 +217,40 @@ NAV_PARENT = {}
 
 
 # ── 조각 ────────────────────────────────────────────────
-def pills(s):
-    out = ""
-    if s["pro"]: out += f'<span class="pill pro">찬 {s["pro"]}</span> '
-    if s["con"]: out += f'<span class="pill con">반 {s["con"]}</span> '
-    if s["neu"]: out += f'<span class="pill neu">제기 {s["neu"]}</span>'
-    return out
+# ── 대립 표시 ──────────────────────────────────────────
+# 같은 개념은 어디서든 같은 모양으로 그린다. 배지 문구만 읽어도 뜻이 통해야 하고
+# 산식을 알 필요가 없어야 한다.
+SB = {"팽팽": "even", "기울어짐": "tilt", "원사이드": "one",
+      "문제제기만": "only", "의견 없음": "none"}
+
+
+def stance_of(s):
+    p, c, n = s["pro"], s["con"], s["neu"]
+    if p and c:
+        return "팽팽" if min(p, c) / max(p, c) >= 0.4 else "기울어짐"
+    if p or c:
+        return "원사이드"
+    return "문제제기만" if n else "의견 없음"
+
+
+def stancebar(s, size=""):
+    p, c, n = s["pro"], s["con"], s["neu"]
+    tot = p + c + n
+    st = stance_of(s)
+    if tot:
+        seg = (f'<i class="sb-con" style="width:{c / tot * 100:.1f}%"></i>'
+               f'<i class="sb-neu" style="width:{n / tot * 100:.1f}%"></i>'
+               f'<i class="sb-pro" style="width:{p / tot * 100:.1f}%"></i>')
+    else:
+        seg = '<i class="sb-non" style="width:100%"></i>'
+    leg = []
+    if c: leg.append(f'<span class="c-con">반대 {c}</span>')
+    if n: leg.append(f'<span class="c-neu">제기 {n}</span>')
+    if p: leg.append(f'<span class="c-pro">찬성 {p}</span>')
+    if st == "원사이드": leg.append("반론 없음")
+    return (f'<div class="sb {size}"><span class="sb-badge {SB[st]}">{st}</span>'
+            f'<span class="sb-bar">{seg}</span>'
+            f'<span class="sb-legend">{" ".join(leg) or "수집된 발언 없음"}</span></div>')
 
 
 def article_row(aid):
@@ -258,8 +286,9 @@ def table(rows):
 # ── 홈 ────────────────────────────────────────────────
 def build_index():
     top5 = sorted(STATS, key=lambda s: -s["n"])[:5]
-    clash = sorted([s for s in STATS if s["pro"] and s["con"]], key=lambda s: -s["clash"])[:6]
-    mx = max([max(s["pro"], s["con"]) for s in clash] or [1])
+    clash = sorted([s for s in STATS if s["pro"] and s["con"]], key=lambda s: -s["clash"])[:5]
+    # 반론 없이 한쪽 주장만 실린 토픽. 보도량이 많은 것부터 보여 준다.
+    oneside = sorted([s for s in STATS if stance_of(s) == "원사이드"], key=lambda s: -s["n"])[:4]
     rank = "".join(
         f'<a class="rank-open" href="topics/{s["t"]["id"]}.html">'
         f'<span class="rank-i num">{i + 1:02d}</span><span>'
@@ -267,35 +296,31 @@ def build_index():
         f'<span class="rank-sum">{e(s["t"]["summary"])}</span>'
         f'<span class="rank-meta"><span style="color:{CC[s["t"]["cat"]]}">{s["t"]["cat"]}</span>'
         f'<span class="num">보도 {md(s["first"])} ~ {md(s["last"])}</span>'
-        f'<span class="num">의견 {s["ops"]}건</span>{pills(s)}</span></span>'
+        f'<span class="num">의견 {s["ops"]}건</span></span>'
+        f'<span style="display:block;margin-top:8px;max-width:230px">{stancebar(s, "mini")}</span></span>'
         f'<span class="rank-side"><b class="num">{s["n"]}</b>기사</span></a>'
         for i, s in enumerate(top5))
-    cl = "".join(
-        f'<a class="clash-row" href="topics/{s["t"]["id"]}.html"><span>'
-        f'<span class="clash-name">{e(s["t"]["label"])}</span>'
-        f'<span class="clash-sub">{s["t"]["cat"]} · 기사 {s["n"]}건 · 의견 {s["ops"]}건</span></span>'
-        f'<span class="clash-bar"><span class="clash-l"><span class="clash-n num">반대 {s["con"]}</span>'
-        f'<span class="b" style="width:{s["con"] / mx * 74:.0f}%"></span></span>'
-        f'<span class="clash-axis"></span><span class="clash-r">'
-        f'<span class="b" style="width:{s["pro"] / mx * 74:.0f}%"></span>'
-        f'<span class="clash-n num">찬성 {s["pro"]}</span></span></span></a>'
-        for s in clash)
+    clrow = lambda lst: "".join(
+        f'<a class="cl-row" href="topics/{s["t"]["id"]}.html"><span>'
+        f'<span class="cl-name">{e(s["t"]["label"])}</span>'
+        f'<span class="cl-sub">{s["t"]["cat"]} · 기사 {s["n"]}건 · 의견 {s["ops"]}건</span></span>'
+        f'{stancebar(s, "lg")}</a>' for s in lst)
+    cl, one = clrow(clash), clrow(oneside)
+    n_one = sum(1 for s in STATS if stance_of(s) == "원사이드")
     duo = lambda rows, k: "".join(
         f'<div class="duo-row"><span>{e(lb(w))}</span><em class="num">{a_} → {b_}건 · '
         f'{"+" if d > 0 else ""}{d * 100:.0f}%p</em></div>' for w, a_, b_, d in rows[:7])
     chips = "".join(
         f'<a class="chip" href="explore.html?w={e(w)}" style="color:{CC[A["cat"][w]]}">'
         f'<span style="color:var(--ink-2)">{e(lb(w))}</span><b class="num">{A["df"][w]}</b></a>'
-        for w in A["terms"][:24])
+        for w in A["terms"][:12])
 
     body = f"""<div class="wrap">
 <header class="hero"><div>
 <div class="eyebrow">뉴스 상관 분석 · 대한민국 · 누적 {len(DATES)}일</div>
 <h1>뉴스의 갈피를<br>단어와 대립으로 잡습니다</h1>
-<p>{META["range"][0].replace("-", ".")}부터 {META["range"][1].replace("-", ".")}까지 국내 주요 언론 보도
-{META["articles"]}건을 키워드로 태깅하고, 단어 사이의 파이(φ) 상관을 계산해 네트워크로 그렸습니다.
-단어를 누르면 그 단어가 등장한 토픽이, 토픽을 누르면 찬반 의견이, 의견을 누르면 그 발언이 실린
-원문 기사가 나옵니다.</p>
+<p>단어 상관으로 이슈를 묶고, 각 이슈에 실린 찬반을 나란히 놓습니다.
+<a href="method.html" style="color:var(--accent)">분석 방법 →</a></p>
 <div class="kpis">
 <div class="kpi"><b class="num">{META["articles"]}</b><span>수집 기사</span></div>
 <div class="kpi"><b class="num">{len(A["terms"])}</b><span>분석 키워드</span></div>
@@ -304,27 +329,35 @@ def build_index():
 <a class="cta" href="explore.html">네트워크 열기 <i>→</i></a>
 </div>{strip(META["daily"])}</header>
 
+<section><div class="sec-head"><h2>오늘의 키워드</h2></div>
+<p class="sec-note">누르면 네트워크에서 열립니다</p>
+<div class="chips">{chips}</div></section>
+
+<section><div class="sec-head"><h2>가장 팽팽한 이슈</h2></div>
+<p class="sec-note">찬성과 반대가 모두 두터운 이슈</p><div>{cl}</div></section>
+
+<section><div class="sec-head"><h2>원사이드</h2><span class="eyebrow">{n_one}건</span></div>
+<p class="sec-note">반론 없이 한쪽 주장만 실린 이슈</p><div>{one}</div></section>
+
+<section><div class="sec-head"><h2>보도량이 가장 많은 이슈</h2><span class="eyebrow">TOP 5</span></div>
+<p class="sec-note">기사 수 기준</p>
+<div class="rank-list">{rank}</div></section>
+
+<section><div class="sec-head"><h2>부상 · 소멸 키워드</h2></div>
+<p class="sec-note">기간 전반 대 후반의 등장률 차이</p>
+<div class="duo"><div class="duo-col"><div class="duo-h up">▲ 부상 키워드</div>{duo(A["rising"], 1)}</div>
+<div class="duo-col"><div class="duo-h down">▼ 소멸 키워드</div>{duo(A["falling"], 0)}</div></div></section>
+
 <a class="game-cta" href="game.html"><div>
 <b>오늘의 낱말</b>
 <span>어제 뉴스에 가장 많이 등장한 단어를 자모 여섯 번으로 맞혀 보세요</span>
 </div><i>→</i></a>
 
-<section><div class="sec-head"><h2>핵심 이슈</h2><span class="eyebrow">TOP 5</span></div>
-<p class="sec-note">보도량(기사 수) 기준 상위 다섯 개 토픽</p>
-<div class="rank-list">{rank}</div></section>
-
-<section><div class="sec-head"><h2>찬반 대립이 가장 치열한 이슈</h2></div>
-<p class="sec-note">대립지수 = 2 × min(찬성, 반대) + 0.25 × (찬성 + 반대). 한쪽 목소리만 많은 이슈는 낮게,
-양쪽이 모두 두터운 이슈는 높게 나옵니다.</p><div>{cl}</div></section>
-
-<section><div class="sec-head"><h2>구간 전반 대 후반, 무엇이 바뀌었나</h2></div>
-<p class="sec-note">기간을 절반으로 갈라 기사 등장률(기사 수로 정규화) 차이를 계산했습니다.</p>
-<div class="duo"><div class="duo-col"><div class="duo-h up">▲ 부상 키워드</div>{duo(A["rising"], 1)}</div>
-<div class="duo-col"><div class="duo-h down">▼ 소멸 키워드</div>{duo(A["falling"], 0)}</div></div></section>
-
-<section><div class="sec-head"><h2>가장 많이 등장한 키워드</h2></div>
-<p class="sec-note">누르면 네트워크 탐색기에서 해당 키워드가 선택된 상태로 열립니다</p>
-<div class="chips">{chips}</div></section>
+<div class="guide">
+<a href="method.html"><b>이 숫자들은 어떻게 나왔나</b><span>수집·태깅부터 상관 계산과 한계까지</span></a>
+<a href="policy.html"><b>무엇을 싣고 무엇을 싣지 않나</b><span>수집 범위와 저작권 입장</span></a>
+<a href="explore.html"><b>직접 기간을 바꿔 보려면</b><span>네트워크 탐색기에서 그 자리에서 재계산</span></a>
+</div>
 </div>"""
     page("index.html", f"갈피 — {META['range'][0]}~{META['range'][1]} 대한민국 뉴스 상관 분석",
          f"국내 보도 {META['articles']}건을 키워드로 태깅해 단어 상관 네트워크를 그리고, "
@@ -342,7 +375,8 @@ def build_topics():
         f'<h3>{e(s["t"]["label"])}</h3><p>{e(s["t"]["summary"])}</p>'
         f'<div class="tcard-meta"><span class="num">기사 {s["n"]}</span>'
         f'<span class="num">의견 {s["ops"]}</span>'
-        f'<span class="num">{md(s["first"])}~{md(s["last"])}</span>{pills(s)}</div></a>'
+        f'<span class="num">{md(s["first"])}~{md(s["last"])}</span></div>'
+        f'<div style="margin-top:9px">{stancebar(s)}</div></a>'
         for s in sorted(STATS, key=lambda s: -s["n"]))
     cattabs = "".join(
         f'<button class="tab" data-f="{c}">{c} {sum(1 for s in STATS if s["t"]["cat"] == c)}</button>'
@@ -414,8 +448,8 @@ def build_topic(s):
 <span class="eyebrow" style="color:{CC[t["cat"]]}">{t["cat"]}</span></div>
 <h1 class="doc-h1">{e(t["label"])}</h1><p class="doc-lead">{e(t["summary"])}</p>
 <div class="doc-meta num"><span>기사 <b>{s["n"]}</b>건</span><span>의견 <b>{s["ops"]}</b>건</span>
-<span>보도 기간 <b>{md(s["first"])} ~ {md(s["last"])}</b></span>
-<span style="display:flex;gap:5px">{pills(s)}</span></div></div>
+<span>보도 기간 <b>{md(s["first"])} ~ {md(s["last"])}</b></span></div>
+<div style="margin-top:16px;max-width:420px">{stancebar(s, "lg")}</div></div>
 
 <h2>일자별 보도 분포</h2>{strip(per, CC[t["cat"]])}
 <h2>제기된 의견 {len(t["opinions"])}건</h2>
